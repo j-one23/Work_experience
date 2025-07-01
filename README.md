@@ -11,6 +11,11 @@ UNet MobileNet v2
 ### 모델 변환
 
 
-![image](https://github.com/user-attachments/assets/401144fb-dc1b-4048-bbbc-d82a92a37637)
+
+![image](https://github.com/user-attachments/assets/401144fb-dc1b-4048-bbbc-d82a92a37637)  
 
 
+```
+https://colab.research.google.com/github/google-coral/tutorials/blob/master/compile_for_edgetpu.ipynb#scrollTo=license
+```
+ - tflite to edgetpu.tflite
