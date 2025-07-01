@@ -48,7 +48,7 @@ class UNetMobileNetV2_TPU(nn.Module):
         return self.final(d5)
 
 # ----------------------------
-# ? 2. PyTorch 占쏙옙 ONNX 占쏙옙환
+# ? 2. PyTorch to ONNX model
 # ----------------------------
 def convert_to_onnx():
     model = UNetMobileNetV2_TPU()
@@ -67,7 +67,7 @@ def convert_to_onnx():
         opset_version=11
     )
 
-    print("? PyTorch 占쏙옙 ONNX 占쏙옙환 占싹뤄옙: unet_tpu_ready.onnx")
+    print(" PyTorch to ONNX 생성 파일명: unet_tpu_ready.onnx")
 
 if __name__ == "__main__":
     convert_to_onnx()
