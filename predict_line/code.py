@@ -36,8 +36,9 @@ def main():
             img = img.astype(np.float32) / 255.0
         else:
             img = img.astype(np.uint8)
-        img = np.transpose(img, (2, 0, 1))  # HWC 占쏙옙 CHW
-        input_data = np.expand_dims(img, axis=0)  # 1占쏙옙C占쏙옙H占쏙옙W
+        img = np.transpose(img, (2, 0, 1))  # HWC to CHW
+        input_data = np.expand_dims(img, axis=0)  # 1,C,H,W
+
 
         common.set_input(interpreter, input_data)
         interpreter.invoke()
@@ -65,30 +66,72 @@ def main():
             interpolation=cv2.INTER_NEAREST,
         )
 
-        # 7) Create red overlay where mask==255
-        mask_color = np.zeros_like(frame)
-        mask_color[mask_resized == 255] = (255, 0, 0)  # BGR: red
+        
+        # 6-1) Crop mask to desired region (1/2 to 5/4 of the height)
+        h = mask_resized.shape[0]
+        start_y = h // 2
+        end_y = min(h * 5 // 4, h)  # prevent going beyond frame height
+        mask_cropped = mask_resized[start_y:end_y, :]
 
-        # 8) Overlay red mask onto original frame
-        overlay = cv2.addWeighted(frame, 0.7, mask_color, 0.3, 0)
+        # 6-2) Connected Components Analysis
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(mask_cropped)
+
+        # 6-3) Print object info
+        print(f"Detected Objects: {num_labels - 1}")  # exclude background
+        object_centroids = []
+        for i in range(1, num_labels):  # label 0 is background
+            x, y, w, h, area = stats[i]
+            cx, cy = centroids[i]
+            object_centroids.append((i, cx, cy))
+            if area > 500:
+                print(f"Object {i}: x={x}, y={y}, w={w}, h={h}, area={area}, centroid=({cx:.1f}, {cy + start_y:.1f})")
+  
+            
+        # 7) Create blue overlay where mask==255
+        mask_color = np.zeros_like(frame)
+        mask_color[mask_resized == 255] = (255, 0, 0)  # BGR: blue
+
+        # 8) Overlay blue mask onto original frame
+        overlay = cv2.addWeighted(frame, 0.7, mask_color, 0.9, 0)
+
+        # 6-4) closest x, in the middle line
+        crop_h, crop_w = mask_cropped.shape
+        center_x = crop_w // 2
+        target_y = crop_h // 2
+
+        mid_line = mask_cropped[target_y]  # 1D array
+
+        white_indices = np.where(mid_line == 255)[0]
+
+        if len(white_indices) >= 2:
+            left_candidates = white_indices[white_indices < center_x]
+            right_candidates = white_indices[white_indices >= center_x]
+
+            if len(left_candidates) > 0 and len(right_candidates) > 0:
+                # find 2 point, each side
+                x1 = left_candidates[np.argmax(left_candidates)] 
+                x2 = right_candidates[np.argmin(right_candidates)]  
+
+                pt1 = (int(x1), int(target_y + start_y))
+                pt2 = (int(x2), int(target_y + start_y))
+                
+                cv2.circle(overlay, pt1, 5, (0, 255, 255), -1)  
+                cv2.circle(overlay, pt2, 5, (0, 255, 255), -1)
+                cv2.line(overlay, pt1, pt2, (0, 0, 255), 2) 
+
+                dist = np.linalg.norm(np.array(pt1) - np.array(pt2))
+                print(f"Distance between closest white pixels at middle row: {dist:.2f} pixels")
+
 
         # 9) Compute & display FPS
         curr_time = time.time()
         fps = 1.0 / (curr_time - prev_time) if prev_time else 0.0
         prev_time = curr_time
-        cv2.putText(
-            overlay,
-            f"FPS: {fps:.2f}",
-            (10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            1.0,
-            (0, 255, 0),
-            2,
-        )
+        cv2.putText( overlay, f"FPS: {fps:.2f}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1.0, (0, 255, 0), 2)
 
         # 10) Show result
         cv2.imshow("Lane Segmentation (Edge TPU)", overlay)
-
+        cv2.imshow("mask", mask_cropped)
         if cv2.waitKey(1) & 0xFF in (27, ord("q")):
             break
 
