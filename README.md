@@ -19,3 +19,4 @@ UNet MobileNet v2
 https://colab.research.google.com/github/google-coral/tutorials/blob/master/compile_for_edgetpu.ipynb#scrollTo=license
 ```
  - tflite to edgetpu.tflite
+tflite 모델을 컴파일러 웹을 통해 변환
